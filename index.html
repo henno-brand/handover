@@ -7,11 +7,8 @@
 <title>Handover</title>
 
 <!-- ============================================================
-     PROJECT DATA
-     This block holds the projects baked into the file.
-     When you click "Export", a new copy of this file is created
-     with your current projects written in here automatically.
-     You normally never edit this by hand.
+     Projects live in projects.json in this repo and are loaded
+     at runtime. The list below is only an offline fallback.
 ============================================================ -->
 <script id="project-data">
 window.__PROJECTS__ = [];
@@ -286,8 +283,10 @@ window.__PROJECTS__ = [];
   }
   .icon-btn:hover { color: var(--text); }
 
-  /* hide edit controls in "clean view" */
-  body.clean .editing-only { display: none !important; }
+  /* edit controls are hidden for viewers, shown only in admin mode */
+  .editing-only { display: none !important; }
+  body.admin button.editing-only { display: inline-flex !important; }
+  body.admin .edit-row.editing-only { display: flex !important; }
 
   .empty {
     text-align: center;
@@ -402,10 +401,9 @@ window.__PROJECTS__ = [];
       <h1>Handover</h1>
       <div class="subtitle">Henno's on vacation until 28th of June, here are his latest projects and workfiles.</div>
     </div>
-    <div class="toolbar editing-only">
-      <button class="ghost" id="viewToggle" title="Preview how a colleague sees it">Preview</button>
-      <button class="ghost" id="exportBtn" title="Download a shareable copy with these projects baked in">Export</button>
-      <button class="primary" id="addBtn">+ Add project</button>
+    <div class="toolbar">
+      <button class="primary editing-only" id="addBtn">+ Add project</button>
+      <button class="ghost" id="adminBtn" title="Log in to add or edit projects">Admin</button>
     </div>
   </header>
 
@@ -422,7 +420,7 @@ window.__PROJECTS__ = [];
   </div>
 
   <footer>
-    Built as a single shareable file · <a href="#" id="exitPreview" style="display:none">Exit preview</a>
+    <span id="syncNote">Loading…</span>
   </footer>
 </div>
 
@@ -430,7 +428,7 @@ window.__PROJECTS__ = [];
 <div class="overlay" id="overlay">
   <div class="modal">
     <h2 id="modalTitle">Add project</h2>
-    <p class="hint">Paste links for media — nothing is uploaded, so the file stays small.</p>
+    <p class="hint">Paste links for media. Saving publishes straight to the live site (~1 min to appear).</p>
     <form id="projectForm">
       <input type="hidden" id="f-id" />
       <label for="f-name">Project name *</label>
@@ -471,22 +469,70 @@ window.__PROJECTS__ = [];
 (function () {
   "use strict";
 
-  var STORAGE_KEY = "my-projects-v1";
+  // ---- config: where the data lives ----
+  var REPO_OWNER = "henno-brand";
+  var REPO_NAME  = "handover";
+  var DATA_PATH  = "projects.json";
+  var TOKEN_KEY  = "handover-admin-token";
+  var API_URL = "https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/contents/" + DATA_PATH;
 
-  // ---- load: localStorage (your working edits) overrides the baked-in data ----
+  var projects = (window.__PROJECTS__ || []).slice(); // offline fallback until fetch resolves
+  var token = "";
+  try { token = localStorage.getItem(TOKEN_KEY) || ""; } catch (e) {}
+
+  var syncNote = document.getElementById("syncNote");
+
+  // Load the live project list from the repo (with a cache-buster).
   function loadProjects() {
-    try {
-      var saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return (window.__PROJECTS__ || []).slice();
+    fetch(DATA_PATH + "?t=" + new Date().getTime(), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (Array.isArray(data)) projects = data;
+        render();
+        setNote();
+      })
+      .catch(function () { render(); setNote(); });
   }
 
-  var projects = loadProjects();
+  function setNote(msg) {
+    if (msg) { syncNote.textContent = msg; return; }
+    syncNote.textContent = token ? "Admin mode — changes publish to the live site." : "";
+  }
 
-  function save() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); } catch (e) {}
-    render();
+  // base64-encode UTF-8 safely (handles emoji / accents)
+  function b64(str) { return btoa(unescape(encodeURIComponent(str))); }
+
+  function authHeaders() {
+    return { "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json" };
+  }
+
+  // Commit the current projects array to projects.json in the repo.
+  function publish(message) {
+    if (!token) { toast("Log in as Admin first"); return Promise.resolve(false); }
+    setNote("Publishing…");
+    // fetch the latest sha so we don't clobber a newer version
+    return fetch(API_URL, { headers: authHeaders(), cache: "no-store" })
+      .then(function (r) {
+        if (r.ok) return r.json();
+        if (r.status === 404) return null; // file doesn't exist yet
+        throw new Error("read " + r.status);
+      })
+      .then(function (info) {
+        var body = {
+          message: message || "Update projects",
+          content: b64(JSON.stringify(projects, null, 2))
+        };
+        if (info && info.sha) body.sha = info.sha;
+        return fetch(API_URL, { method: "PUT", headers: authHeaders(), body: JSON.stringify(body) });
+      })
+      .then(function (r) {
+        if (r.ok) { toast("Published ✓ live in ~1 min"); setNote(); return true; }
+        if (r.status === 401 || r.status === 403) { toast("Token rejected — log in again"); }
+        else { toast("Publish failed (" + r.status + ")"); }
+        setNote();
+        return false;
+      })
+      .catch(function () { toast("Publish failed — check connection"); setNote(); return false; });
   }
 
   // ---- helpers ----
@@ -581,8 +627,10 @@ window.__PROJECTS__ = [];
     updateFilters();
 
     if (!projects.length) {
-      emptyEl.innerHTML = "No projects yet. Click <strong>+ Add project</strong> to get started.";
-      emptyEl.style.display = document.body.classList.contains("clean") ? "none" : "block";
+      emptyEl.innerHTML = document.body.classList.contains("admin")
+        ? "No projects yet. Click <strong>+ Add project</strong> to get started."
+        : "No projects yet.";
+      emptyEl.style.display = "block";
       return;
     }
 
@@ -713,25 +761,30 @@ window.__PROJECTS__ = [];
       status: statusInput.value || DEFAULT_STATUS
     };
     if (!data.name) return;
+    var msg;
     if (id) {
       var p = projects.find(function (x) { return x.id === id; });
       if (p) Object.assign(p, data);
+      msg = "Update project: " + data.name;
     } else {
       data.id = uid();
       projects.push(data);
+      msg = "Add project: " + data.name;
     }
-    save();
+    render();
     closeModal();
-    toast("Saved");
+    publish(msg);
   });
 
   deleteBtn.addEventListener("click", function () {
     var id = document.getElementById("f-id").value;
-    if (id && confirm("Delete this project?")) {
+    if (!id) return;
+    var p = projects.find(function (x) { return x.id === id; });
+    if (confirm("Delete this project?")) {
       projects = projects.filter(function (x) { return x.id !== id; });
-      save();
+      render();
       closeModal();
-      toast("Deleted");
+      publish("Delete project: " + (p ? p.name : id));
     }
   });
 
@@ -740,39 +793,37 @@ window.__PROJECTS__ = [];
   overlay.addEventListener("click", function (e) { if (e.target === overlay) closeModal(); });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
 
-  // ---- preview (clean view) toggle ----
-  var viewToggle = document.getElementById("viewToggle");
-  var exitPreview = document.getElementById("exitPreview");
-  function setClean(on) {
-    document.body.classList.toggle("clean", on);
-    exitPreview.style.display = on ? "inline" : "none";
+  // ---- admin login (token kept only in this browser) ----
+  var adminBtn = document.getElementById("adminBtn");
+
+  function setAdmin(on) {
+    document.body.classList.toggle("admin", on);
+    adminBtn.textContent = on ? "Log out" : "Admin";
+    setNote();
     render();
   }
-  viewToggle.addEventListener("click", function () { setClean(true); });
-  exitPreview.addEventListener("click", function (e) { e.preventDefault(); setClean(false); });
 
-  // ---- export: build a fresh standalone file with current projects baked in ----
-  document.getElementById("exportBtn").addEventListener("click", function () {
-    var clone = document.documentElement.cloneNode(true);
-    // clear any preview state
-    clone.querySelector("body").classList.remove("clean");
-    // empty the rendered grid so the file ships clean (JS re-renders on open)
-    var g = clone.querySelector("#grid"); if (g) g.innerHTML = "";
-    var ep = clone.querySelector("#exitPreview"); if (ep) ep.style.display = "none";
-    // bake the data
-    var dataScript = clone.querySelector("#project-data");
-    dataScript.textContent = "\nwindow.__PROJECTS__ = " + JSON.stringify(projects, null, 2) + ";\n";
-
-    var html = "<!DOCTYPE html>\n" + clone.outerHTML;
-    var blob = new Blob([html], { type: "text/html" });
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "my-projects.html";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast("Exported — send my-projects.html to share");
+  adminBtn.addEventListener("click", function () {
+    if (token) {
+      token = "";
+      try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+      setAdmin(false);
+      toast("Logged out");
+      return;
+    }
+    var t = window.prompt(
+      "Paste your GitHub access token to enable editing.\n" +
+      "It is stored only in this browser — never share it."
+    );
+    if (t && t.trim()) {
+      token = t.trim();
+      try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
+      setAdmin(true);
+      toast("Admin mode on");
+    }
   });
+
+  setAdmin(!!token);
 
   // ---- toast ----
   var toastEl = document.getElementById("toast");
@@ -785,6 +836,7 @@ window.__PROJECTS__ = [];
   }
 
   render();
+  loadProjects();
 })();
 </script>
 </body>
