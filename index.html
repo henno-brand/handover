@@ -402,6 +402,7 @@ window.__PROJECTS__ = [];
       <div class="subtitle">Henno's on vacation until 28th of June, here are his latest projects and workfiles.</div>
     </div>
     <div class="toolbar">
+      <button class="ghost" id="copyLinksBtn" title="Copy a name + work-file-link list to share">Copy work files list</button>
       <button class="primary editing-only" id="addBtn">+ Add project</button>
       <button class="ghost" id="adminBtn" title="Log in to add or edit projects">Admin</button>
     </div>
@@ -824,6 +825,32 @@ window.__PROJECTS__ = [];
   });
 
   setAdmin(!!token);
+
+  // ---- copy work-files list to clipboard ----
+  function copyText(text, count) {
+    function done() { toast("Copied " + count + " work-file links"); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(); });
+    } else { fallback(); }
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); done(); }
+      catch (e) { window.prompt("Copy this list:", text); }
+      document.body.removeChild(ta);
+    }
+  }
+
+  document.getElementById("copyLinksBtn").addEventListener("click", function () {
+    var withLinks = projects.filter(function (p) { return p.dropbox; });
+    if (!withLinks.length) { toast("No work-file links to copy"); return; }
+    var text = withLinks.map(function (p) { return p.name + "\n" + p.dropbox; }).join("\n\n");
+    copyText(text, withLinks.length);
+  });
 
   // ---- toast ----
   var toastEl = document.getElementById("toast");
