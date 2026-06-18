@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Handover</title>
+
+<!-- ============================================================
+     PROJECT DATA
+     This block holds the projects baked into the file.
+     When you click "Export", a new copy of this file is created
+     with your current projects written in here automatically.
+     You normally never edit this by hand.
+============================================================ -->
+<script id="project-data">
+window.__PROJECTS__ = [];
+</script>
+
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #181b22;
+    --card-hover: #1f232c;
+    --border: #262a33;
+    --text: #e7e9ee;
+    --muted: #8b909c;
+    --accent: #6c8cff;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 650;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    margin-top: 6px;
+  }
+
+  .toolbar { display: flex; gap: 10px; }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    padding: 10px 16px;
+    transition: background 0.15s, border-color 0.15s, transform 0.05s;
+  }
+  button:hover { background: var(--card-hover); }
+  button:active { transform: translateY(1px); }
+
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 550;
+  }
+  button.primary:hover { filter: brightness(1.08); background: var(--accent); }
+
+  button.ghost { background: transparent; }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: -16px 0 30px;
+  }
+  .filters button {
+    padding: 7px 14px;
+    font-size: 13px;
+    color: var(--muted);
+    border-radius: 999px;
+  }
+  .filters button.active {
+    color: #fff;
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 550;
+  }
+
+  /* ---- masonry layout: cards keep their natural height and pack organically ---- */
+  .grid {
+    column-width: 300px;
+    column-gap: 22px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.15s, transform 0.12s;
+    width: 100%;
+    margin: 0 0 22px;
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+  }
+  .card:hover { border-color: #39414f; transform: translateY(-2px); }
+
+  .media {
+    position: relative;
+    background: #0b0d11;
+    overflow: hidden;
+    line-height: 0;
+  }
+  /* thumbnails and videos keep their own ratio — no crop, no black bars */
+  .media img,
+  .media video {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 0;
+  }
+  /* embeds (YouTube/Vimeo/Loom) have no intrinsic size — give them a 16:9 box */
+  .media.embed { aspect-ratio: 16 / 9; background: #000; }
+  .media.embed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+
+  /* click-to-play poster button */
+  .video-trigger {
+    display: block;
+    position: relative;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: #0b0d11;
+    cursor: pointer;
+    line-height: 0;
+    overflow: hidden;
+  }
+  .play-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(2px);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    padding-left: 4px;
+    transition: background 0.15s, transform 0.12s;
+  }
+  .video-trigger:hover .play-icon { background: rgba(0,0,0,0.75); transform: translate(-50%, -50%) scale(1.06); }
+  .media .placeholder {
+    aspect-ratio: 16 / 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #3c424e;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .play-badge {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    letter-spacing: 0.03em;
+  }
+
+  .card-body {
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .card-desc {
+    color: var(--muted);
+    font-size: 13.5px;
+    margin: 0;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .status-pill i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex: none;
+  }
+  .st-todo  { color: #8b909c; background: rgba(139,144,156,0.14); }
+  .st-doing { color: #e0a44a; background: rgba(224,164,74,0.16); }
+  .st-done  { color: #54c08a; background: rgba(84,192,138,0.16); }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  a.link {
+    text-decoration: none;
+    color: var(--accent);
+    font-size: 13.5px;
+    font-weight: 550;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: background 0.15s;
+  }
+  a.link:hover { background: var(--card-hover); }
+
+  .edit-row {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .icon-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .icon-btn:hover { color: var(--text); }
+
+  /* hide edit controls in "clean view" */
+  body.clean .editing-only { display: none !important; }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 80px 20px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+
+  /* ---- modal ---- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 50;
+  }
+  .overlay.open { display: flex; }
+
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 480px;
+    padding: 26px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 { margin: 0 0 4px; font-size: 19px; }
+  .modal p.hint { margin: 0 0 20px; color: var(--muted); font-size: 13px; }
+
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  input, textarea {
+    width: 100%;
+    font: inherit;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 9px;
+    padding: 10px 12px;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 64px; }
+
+  /* segmented status toggle */
+  .segment {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .segment button {
+    flex: 1;
+    padding: 9px 8px;
+    font-size: 13px;
+    color: var(--muted);
+    background: var(--bg);
+  }
+  .segment button.active {
+    color: #fff;
+    border-color: var(--accent);
+    background: var(--accent);
+    font-weight: 550;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #fff;
+    color: #111;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 550;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  footer {
+    margin-top: 60px;
+    color: #4a4f5a;
+    font-size: 12px;
+    text-align: center;
+  }
+  footer a { color: #5b6270; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Handover</h1>
+      <div class="subtitle">Henno's on vacation until 28th of June, here are his latest projects and workfiles.</div>
+    </div>
+    <div class="toolbar editing-only">
+      <button class="ghost" id="viewToggle" title="Preview how a colleague sees it">Preview</button>
+      <button class="ghost" id="exportBtn" title="Download a shareable copy with these projects baked in">Export</button>
+      <button class="primary" id="addBtn">+ Add project</button>
+    </div>
+  </header>
+
+  <div class="filters" id="filters">
+    <button data-filter="all" data-label="All">All</button>
+    <button data-filter="not-started" data-label="Not started">Not started</button>
+    <button data-filter="in-progress" data-label="In progress">In progress</button>
+    <button data-filter="done" data-label="Done">Done</button>
+  </div>
+
+  <div id="grid" class="grid"></div>
+  <div id="empty" class="empty" style="display:none">
+    No projects yet. Click <strong>+ Add project</strong> to get started.
+  </div>
+
+  <footer>
+    Built as a single shareable file · <a href="#" id="exitPreview" style="display:none">Exit preview</a>
+  </footer>
+</div>
+
+<!-- Add / edit modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Add project</h2>
+    <p class="hint">Paste links for media — nothing is uploaded, so the file stays small.</p>
+    <form id="projectForm">
+      <input type="hidden" id="f-id" />
+      <label for="f-name">Project name *</label>
+      <input id="f-name" required placeholder="e.g. Summer Campaign 2026" />
+
+      <label>Status</label>
+      <input type="hidden" id="f-status" />
+      <div class="segment" id="statusGroup">
+        <button type="button" data-status="not-started">Not started</button>
+        <button type="button" data-status="in-progress">In progress</button>
+        <button type="button" data-status="done">Done</button>
+      </div>
+
+      <label for="f-desc">Short description</label>
+      <textarea id="f-desc" placeholder="One or two lines about it (optional)"></textarea>
+
+      <label for="f-thumb">Thumbnail image URL</label>
+      <input id="f-thumb" placeholder="https://… (jpg/png/gif)" />
+
+      <label for="f-video">Video URL (optional)</label>
+      <input id="f-video" placeholder="YouTube, Vimeo, Loom, or direct .mp4 link" />
+
+      <label for="f-dropbox">Dropbox / work-file link</label>
+      <input id="f-dropbox" placeholder="https://www.dropbox.com/…" />
+
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="deleteBtn" style="margin-right:auto;display:none">Delete</button>
+        <button type="button" class="ghost" id="cancelBtn">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "my-projects-v1";
+
+  // ---- load: localStorage (your working edits) overrides the baked-in data ----
+  function loadProjects() {
+    try {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return (window.__PROJECTS__ || []).slice();
+  }
+
+  var projects = loadProjects();
+
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); } catch (e) {}
+    render();
+  }
+
+  // ---- helpers ----
+  function uid() {
+    return "p" + Date.now().toString(36) + Math.floor(performance.now()).toString(36);
+  }
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  // Rewrite a Dropbox share link to a direct one.
+  // raw=1 streams the file inline; dl=1 forces a download.
+  function dropboxify(url, mode) {
+    var param = mode === "download" ? "dl=1" : "raw=1";
+    var out = url.replace(/([?&])(raw|dl)=\d/, "$1" + param);
+    if (out === url) out += (out.indexOf("?") === -1 ? "?" : "&") + param;
+    return out;
+  }
+
+  // Dropbox image links need the same rewrite to display directly.
+  function thumbUrl(url) {
+    if (!url) return "";
+    return /dropbox\.com/.test(url) ? dropboxify(url, "stream") : url;
+  }
+
+  // Turn a video URL into an embeddable form.
+  // Returns {type, src} and, for downloadable files, a {file} URL too.
+  function parseVideo(url) {
+    if (!url) return null;
+    var u = url.trim();
+    var m;
+    // YouTube
+    m = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);
+    if (m) return { type: "iframe", src: "https://www.youtube.com/embed/" + m[1] };
+    // Vimeo
+    m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (m) return { type: "iframe", src: "https://player.vimeo.com/video/" + m[1] };
+    // Loom
+    m = u.match(/loom\.com\/(?:share|embed)\/([\w-]+)/);
+    if (m) return { type: "iframe", src: "https://www.loom.com/embed/" + m[1] };
+    // Dropbox-hosted video file → stream inline + offer a download
+    var isDropbox = /dropbox\.com/.test(u);
+    var looksLikeVideo = /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(u);
+    if (isDropbox && looksLikeVideo) {
+      return { type: "video", src: dropboxify(u, "stream"), file: dropboxify(u, "download") };
+    }
+    // Plain direct video file
+    if (looksLikeVideo) return { type: "video", src: u, file: u };
+    // Fallback: just a link
+    return { type: "link", src: u };
+  }
+
+  // ---- render ----
+  var grid = document.getElementById("grid");
+  var emptyEl = document.getElementById("empty");
+
+  var STATUS = {
+    "not-started": { label: "Not started", cls: "st-todo" },
+    "in-progress": { label: "In progress", cls: "st-doing" },
+    "done":        { label: "Done",        cls: "st-done" }
+  };
+  var DEFAULT_STATUS = "in-progress";
+
+  function statusOf(p) { return STATUS[p.status] ? p.status : DEFAULT_STATUS; }
+
+  // ---- filtering ----
+  var filtersEl = document.getElementById("filters");
+  var currentFilter = "all";
+
+  filtersEl.querySelectorAll("button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      currentFilter = b.getAttribute("data-filter");
+      render();
+    });
+  });
+
+  function updateFilters() {
+    var counts = { all: projects.length, "not-started": 0, "in-progress": 0, "done": 0 };
+    projects.forEach(function (p) { counts[statusOf(p)]++; });
+    filtersEl.style.display = projects.length ? "flex" : "none";
+    filtersEl.querySelectorAll("button").forEach(function (b) {
+      var f = b.getAttribute("data-filter");
+      b.textContent = b.getAttribute("data-label") + " (" + counts[f] + ")";
+      b.classList.toggle("active", f === currentFilter);
+    });
+  }
+
+  function render() {
+    grid.innerHTML = "";
+    updateFilters();
+
+    if (!projects.length) {
+      emptyEl.innerHTML = "No projects yet. Click <strong>+ Add project</strong> to get started.";
+      emptyEl.style.display = document.body.classList.contains("clean") ? "none" : "block";
+      return;
+    }
+
+    var list = currentFilter === "all"
+      ? projects
+      : projects.filter(function (p) { return statusOf(p) === currentFilter; });
+
+    if (!list.length) {
+      emptyEl.innerHTML = "No projects with this status.";
+      emptyEl.style.display = "block";
+      return;
+    }
+    emptyEl.style.display = "none";
+
+    list.forEach(function (p) {
+      var video = parseVideo(p.video);
+      var thumb = thumbUrl(p.thumb);
+      var card = document.createElement("div");
+      card.className = "card";
+
+      var mediaHTML;
+      var mediaClass = "";
+      if (video && video.type === "iframe") {
+        mediaClass = "embed";
+        mediaHTML = '<iframe src="' + esc(video.src) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+      } else if (video && video.type === "video") {
+        // show the thumbnail as a poster; click swaps in the fitted video
+        var poster = thumb
+          ? '<img src="' + esc(thumb) + '" alt="' + esc(p.name) + '" loading="lazy" />'
+          : '<div class="placeholder">No preview</div>';
+        mediaHTML = '<button class="video-trigger" data-src="' + esc(video.src) + '" data-poster="' + esc(thumb) + '">'
+          + poster + '<span class="play-icon">▶</span></button>';
+      } else if (thumb) {
+        mediaHTML = '<img src="' + esc(thumb) + '" alt="' + esc(p.name) + '" loading="lazy" />'
+          + (video && video.type === "link" ? '<span class="play-badge">▶ Video</span>' : "");
+      } else {
+        mediaHTML = '<div class="placeholder">No preview</div>';
+      }
+
+      var links = "";
+      if (video && video.type === "link") {
+        links += '<a class="link" href="' + esc(video.src) + '" target="_blank" rel="noopener">▶ Watch video</a>';
+      }
+      if (p.dropbox) {
+        links += '<a class="link" href="' + esc(p.dropbox) + '" target="_blank" rel="noopener">📁 Work files</a>';
+      }
+      if (video && video.type === "video" && video.file) {
+        links += '<a class="link" href="' + esc(video.file) + '" target="_blank" rel="noopener" download>⬇ MP4</a>';
+      }
+
+      var st = STATUS[p.status] || STATUS[DEFAULT_STATUS];
+
+      card.innerHTML =
+        '<div class="media ' + mediaClass + '">' + mediaHTML + '</div>' +
+        '<div class="card-body">' +
+          '<span class="status-pill ' + st.cls + '"><i></i>' + st.label + '</span>' +
+          '<h3 class="card-title">' + esc(p.name) + '</h3>' +
+          (p.desc ? '<p class="card-desc">' + esc(p.desc) + '</p>' : '') +
+          '<div class="card-actions">' + links +
+            '<div class="edit-row editing-only">' +
+              '<button class="icon-btn" data-edit="' + p.id + '">Edit</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+      grid.appendChild(card);
+    });
+
+    // wire edit buttons
+    grid.querySelectorAll("[data-edit]").forEach(function (b) {
+      b.addEventListener("click", function () { openModal(b.getAttribute("data-edit")); });
+    });
+
+    // wire click-to-play posters
+    grid.querySelectorAll(".video-trigger").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var src = b.getAttribute("data-src");
+        var poster = b.getAttribute("data-poster");
+        b.parentNode.innerHTML = '<video src="' + esc(src) + '" controls autoplay playsinline'
+          + (poster ? ' poster="' + esc(poster) + '"' : "") + '></video>';
+      });
+    });
+  }
+
+  // ---- modal ----
+  var overlay = document.getElementById("overlay");
+  var form = document.getElementById("projectForm");
+  var modalTitle = document.getElementById("modalTitle");
+  var deleteBtn = document.getElementById("deleteBtn");
+  var statusGroup = document.getElementById("statusGroup");
+  var statusInput = document.getElementById("f-status");
+
+  function setStatus(value) {
+    statusInput.value = value;
+    statusGroup.querySelectorAll("button").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-status") === value);
+    });
+  }
+  statusGroup.querySelectorAll("button").forEach(function (b) {
+    b.addEventListener("click", function () { setStatus(b.getAttribute("data-status")); });
+  });
+
+  function openModal(id) {
+    var p = id ? projects.find(function (x) { return x.id === id; }) : null;
+    modalTitle.textContent = p ? "Edit project" : "Add project";
+    document.getElementById("f-id").value = p ? p.id : "";
+    document.getElementById("f-name").value = p ? p.name || "" : "";
+    document.getElementById("f-desc").value = p ? p.desc || "" : "";
+    document.getElementById("f-thumb").value = p ? p.thumb || "" : "";
+    document.getElementById("f-video").value = p ? p.video || "" : "";
+    document.getElementById("f-dropbox").value = p ? p.dropbox || "" : "";
+    setStatus(p ? (p.status || DEFAULT_STATUS) : DEFAULT_STATUS);
+    deleteBtn.style.display = p ? "inline-block" : "none";
+    overlay.classList.add("open");
+    document.getElementById("f-name").focus();
+  }
+  function closeModal() { overlay.classList.remove("open"); form.reset(); }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var id = document.getElementById("f-id").value;
+    var data = {
+      name: document.getElementById("f-name").value.trim(),
+      desc: document.getElementById("f-desc").value.trim(),
+      thumb: document.getElementById("f-thumb").value.trim(),
+      video: document.getElementById("f-video").value.trim(),
+      dropbox: document.getElementById("f-dropbox").value.trim(),
+      status: statusInput.value || DEFAULT_STATUS
+    };
+    if (!data.name) return;
+    if (id) {
+      var p = projects.find(function (x) { return x.id === id; });
+      if (p) Object.assign(p, data);
+    } else {
+      data.id = uid();
+      projects.push(data);
+    }
+    save();
+    closeModal();
+    toast("Saved");
+  });
+
+  deleteBtn.addEventListener("click", function () {
+    var id = document.getElementById("f-id").value;
+    if (id && confirm("Delete this project?")) {
+      projects = projects.filter(function (x) { return x.id !== id; });
+      save();
+      closeModal();
+      toast("Deleted");
+    }
+  });
+
+  document.getElementById("addBtn").addEventListener("click", function () { openModal(null); });
+  document.getElementById("cancelBtn").addEventListener("click", closeModal);
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) closeModal(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
+
+  // ---- preview (clean view) toggle ----
+  var viewToggle = document.getElementById("viewToggle");
+  var exitPreview = document.getElementById("exitPreview");
+  function setClean(on) {
+    document.body.classList.toggle("clean", on);
+    exitPreview.style.display = on ? "inline" : "none";
+    render();
+  }
+  viewToggle.addEventListener("click", function () { setClean(true); });
+  exitPreview.addEventListener("click", function (e) { e.preventDefault(); setClean(false); });
+
+  // ---- export: build a fresh standalone file with current projects baked in ----
+  document.getElementById("exportBtn").addEventListener("click", function () {
+    var clone = document.documentElement.cloneNode(true);
+    // clear any preview state
+    clone.querySelector("body").classList.remove("clean");
+    // empty the rendered grid so the file ships clean (JS re-renders on open)
+    var g = clone.querySelector("#grid"); if (g) g.innerHTML = "";
+    var ep = clone.querySelector("#exitPreview"); if (ep) ep.style.display = "none";
+    // bake the data
+    var dataScript = clone.querySelector("#project-data");
+    dataScript.textContent = "\nwindow.__PROJECTS__ = " + JSON.stringify(projects, null, 2) + ";\n";
+
+    var html = "<!DOCTYPE html>\n" + clone.outerHTML;
+    var blob = new Blob([html], { type: "text/html" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "my-projects.html";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast("Exported — send my-projects.html to share");
+  });
+
+  // ---- toast ----
+  var toastEl = document.getElementById("toast");
+  var toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 2200);
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
